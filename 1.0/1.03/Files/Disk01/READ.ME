@@ -1,0 +1,288 @@
+Lattice 8086/8088 C Compiler
+
+Manual Errata
+
+1. Missing ENDS statement
+
+     On page 1-33 of the manual, the last four statements of the
+assembly language example should read
+
+          XCFIND ENDP
+          XCMAKE ENDP
+          PROG   ENDS
+                 END
+
+Note that inclusion of the ENDS statement is critical; if omitted, the
+linker will produce an invalid .EXE file when the module is linked.
+
+2. Call "_exit", not "exit"
+
+     On page 1-38 of the manual, a short version of "_main" is 
+presented; however, the final statement before the closing brace
+should read
+
+          _exit(0);
+
+If "exit" is called, the level 2 I/O functions are included in the
+program.  Note that the correct version of this function has now been
+supplied as TINYMAIN.C (see Note 2 in the addenda, below).
+
+
+Addenda to Manual for Version 1.03
+
+
+1. Options not yet implemented
+
+     The -d and -f options described in the manual have not yet been
+implemented.
+
+2. Additional files:  CONIO.C, FXU.C, MAIN.C, TINYMAIN.C, C.ASM, CC.ASM
+
+     The source for the basic console I/O functions has been supplied
+as CONIO.C.  Users may customize this package to suit their own needs.
+The source for the function extract utility FXU.C has been included 
+as a more complex example of text processing (note the changes to
+FXU for Version 1.03; see item 14 below).   The standard library
+version of "_main" is supplied as MAIN.C, while a smaller version
+which does not open any buffered files is supplied as TINYMAIN.C.
+Finally, the assembler language source for C.OBJ and CC.OBJ (see
+item 11 below) has been supplied as C.ASM and CC.ASM.  
+
+3. Additional macros
+
+     Three simple macros have been added to STDIO.H:  "max", "min", and
+"abs".  Use them as if they were functions, but remember that they are
+macros; beware of side effects.  Also beware of using "max", "min", or
+"abs" as a variable; the result will be an "invalid macro usage" error.
+
+4. New compile time option
+
+     A special compile time option designed as a convenience in using
+#include files has been added to the first phase of the compiler
+(LC1).  Normally, all #include files are read from the currently
+logged in disk; the "-i" option allows a different drive to be
+specified when the program is compiled.  For example, 
+
+          LC1 B:FSUBS -ib
+
+compiles B:FSUBS.C and also reads any #include files from B: as well.
+
+5. Initializers and the -x option
+
+     In order to allow the -x option to be used consistently for all
+types of external declarations, the current version of the compiler
+will ignore initializer expressions for declarations which are
+forced to "extern" status by the -x option.  The previous version
+(1.00) flagged such expressions as being in error.
+
+6. Null input file
+
+     If the first phase of the compiler processes an input file
+which does not declare any functions or data, it will generate
+the special message
+
+          No functions or data defined
+          Execution terminated
+
+and will delete the .Q file.  The previous version (1.00)
+produced a quad file that caused the second phase of the compiler
+to die with the erroneous message "Not enough memory."
+
+7. Disk blocking factor
+
+     The library routines which process the "read" and "write"
+functions for disk files now obtain the disk blocking factor from
+the external location "_block"; the previous version always used
+a value of 128.  This value (128) remains the default, but
+programmers may override this with a different value by including
+a statement like 
+
+          int _block = 512;
+
+in one of the functions in the program (note: this declaration
+must occur outside the body of any function in order for "_block"
+to be externally defined).  Increasing the blocking factor may
+improve the performance of programs which perform substantial
+amounts of disk I/O.  The following restrictions should be noted:
+
+     (1) Only 4 values are supported by the library function;
+they are 128, 256, 512, and 1024.  Setting "_block" to any other
+value will have disastrous results.
+
+     (2) The value of "_block" should be defined (as in the
+example above) by initialization, and should not be changed
+during execution of the program (because the buffer allocated
+when the file is opened is freed upon closing, and "_block" is
+used to specify the size at both times).
+
+8. Change in the action of the "rstmem" function
+
+     In the previous version of the library, the level 2 memory
+allocation function "rstmem" restored the memory pool to its
+empty state by calling "rbrk".  This had the effect of
+de-allocating all of the memory obtained by calls to "sbrk", as
+well as calls to "getmem".  In the current version, the action of
+"rstmem" has been changed so that only allocations made after a
+call to "allmem" are affected.  This allows programmers to make a
+certain number of initial "sbrk" or "getmem" calls, and then to
+initialize a memory pool by calling "allmem".  Any allocations
+made after that call to "allmem" will be freed by "rstmem", but
+the preceding "sbrk" or "getmem" calls are not affected.  Thus,
+the restriction cited in the manual -- that "rstmem" cannot be
+called if any files are open -- no longer applies (unless those
+files were opened AFTER the first call to "allmem").
+
+9. Change in the action of the "clrerr" function
+
+     In addition to clearing the error flag for a specified file,
+the "clrerr" function now clears the end-of-file flag as well.
+
+10. "kbhit" function now supplied
+
+     The "kbhit" function described in Section 1.5.5 has now been
+supplied as part of CONIO.C and included in the library (it was
+not included in Version 1.00 due to an oversight).  Please note
+that the action of the function as described in the manual is
+exactly opposite to its actual characteristics:  it returns zero
+if a character has NOT been typed at the keyboard, and non-zero
+if a character is pending.
+
+11. Producing .COM files
+
+     Programmers may now create .EXE files which can be converted
+to .COM files using the EXE2BIN utility provided with the later
+versions of MS-DOS.  In order to do this, the program must be
+linked using CC.OBJ as the first module on the link command,
+instead of C.OBJ.  This new file defines an initialization
+sequence similar to that performed by C.OBJ, except that (1) no
+STACK segment is defined and (2) no segment fixups are needed. 
+Two cautions should be noted.  First, since no segment of type
+STACK is defined, the linker will issue the warning
+
+          Warning: no STACK segment
+
+and will complete the link with a message indicating that one
+error was detected.  Both messages can be ignored, as they do not
+indicate an actual error condition.  Second, programs which
+incorporate assembly language routines with segment-relative
+values in them cannot be converted to .COM files, even if CC.OBJ
+is used during linking.  (Note:  assembly language programs which
+adhere to the conventions described in Section 1.4.4 of the manual
+do not normally contain segment-relative fixups; only programs
+which refer to other segments -- that is, other than PROG or DATA
+-- can possibly violate this restriction.)
+
+12. Language corrections
+
+     Although no new features or extensions have been added,
+several minor features of the language accepted by the compiler
+have been corrected or modified.  These include:
+
+     (a) Forward structure pointer references.  The compiler now
+accepts pointer declarations such as
+
+          struct XYZ *x;
+
+even if structures of type "XYZ" have not yet been defined.  The
+structure must, however, be defined before the end of the source
+module, or an error message will be generated.
+
+     (b) Cast operators in initializer expressions.  A cast may
+now be used to force the initializer for a pointer into a pointer
+of the correct type.
+
+     (c) #if expressions.  The processing of #if expressions has
+been modified internally, with two visible results for programmers:
+"sizeof" expression can no longer be used in #if expressions, and
+undefined symbols are treated as if the constant value zero had
+been specified.
+
+     (d) Size restriction.  The limitation on the size of 
+declared objects (32767 bytes) is now strictly enforced; the
+error message "maximum object/storage size exceeded" is produced
+when a violation is detected.  Note that the total size of a
+sequence of objects within the same storage class is subject to
+the same limitation.
+
+     (e) Floating point exponents.  A plus sign (+) is now tolerated
+in the exponent field of floating point constants.
+
+     (f) #define symbols.  The dollar sign is now accepted as an
+embedded character in #define symbols, as it is in standard 
+identifiers.
+
+     (g) Macro invocation.  White space is now accepted between
+the macro name and the opening parenthesis of the macro argument
+list.  (The requirement of the macro being specified on a single
+line still applies.)
+
+     (h) Escape character processing.  The number of octal digits
+processed in a "\nnn" escape sequence is now limited to 3;
+similarly, a maximum of 2 hexadecimal digits is processed after
+"\x".  This allows subsequent text to include digits without
+them being processed as part of the escape sequence.
+
+13. Processing of =, <, and > specifiers on command line
+
+     As an inspection of the source file MAIN.C will quickly
+show, the new version of "_main" supplied in the library can
+process the various special command fields in any order and
+in any position on the command line.  Previous version of 
+"_main" required the special fields in a particular order.
+
+14. New version of function extract utility
+
+     The new version of FXU (the source to which is supplied in
+FXU.C, as before) has been completely rewritten, and its processing
+modified substantially.  The extracted function text is written
+to the standard output, rather than to a file with the function's
+name and a .C extension; thus, the ">filename" command line option
+must be used to direct this output to a file, if desired.  In 
+addition, once the function is found and before any of its text
+is written to "stdout", text is read from the standard input and
+written without modification to "stdout".  This feature allows
+a header file to be prepended to the extracted function text.
+Note that if this feature is not desired, the "<NUL" option
+must be used; otherwise, FXU will try to read text from the
+console (the default assignment of "stdin").  Thus, the effect
+of the old FXU command
+
+          FXU STRINGS.C strfnc
+
+can be achieved with the new utility using the command
+
+          FXU <NUL >STRFNC.C STRINGS.C strfnc
+
+The supplied version of FXU uses an internal buffer to store
+characters between functions, while it scans for the next.
+The buffer size can be expanded, if necessary, by a simple
+modification to the source text.
+
+
+PACKING LIST
+
+The following files are intended to be delivered with Version 1.03:
+
+     LC1.EXE     C Compiler (Phase 1)
+     LC2.EXE     C Compiler (Phase 2)
+     FXU.EXE     Function extract utility program
+     C.OBJ       C program entry/exit module
+     CC.OBJ      Version of C.OBJ for producing .COM files
+     LC.LIB      Run-time and I/O library
+     LC.BAT      Batch procedure to execute LC1 and LC2
+     STDIO.H     Standard I/O header file
+     CONIO.H     Console I/O header file
+     CTYPE.H     Character type header file
+     MAIN.C      Standard library version of "_main"
+     TINYMAIN.C  Abbreviated version of "_main"
+     FTOC.C      Fahrenheit-to-Celsius sample program
+     CAT.C       File concatenate sample program
+     SIEVE.C     Eratosthenes sieve sample program
+     FXU.C       Source for function extract utility
+     CONIO.C     Basic console I/O functions
+     C.ASM       Assembler source for C.OBJ
+     CC.ASM      Assembler source for CC.OBJ
+     IO.ASM      Sample assembler program
+     READ.ME     Manual addenda for current version
+
+                                                                                                                                                                         
