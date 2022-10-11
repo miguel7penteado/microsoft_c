@@ -1,4 +1,4 @@
-# microsoft_c
+# Compilador C da Microsoft for MS-DOS
 Compiladores C da Microsoft no tempo do MS-DOS
 
 
